@@ -1,0 +1,7 @@
+READ-ME
+Motivation: personal interest in how I would extract data from a website and analyse it (e.g. first through this simple visualiser).
+	Assumption: data is ingested via the GEWebScrapper project and kept in its format.
+    Project follows the MVC Design pattern.
+	GEDataModel - Model: handles the data & logic
+	GEDataView - View: Visually displays the data
+	GEDataControler - Controller: gets user input & translates into actions for the model.
