@@ -1,7 +1,9 @@
 
 import javafx.application.Application; // Ensure this import is present
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.io.File; // For file operations
 import java.nio.file.Files; // For creating dummy file
@@ -36,36 +38,39 @@ public class GEDataController {
         }
     }
     
-    public static int[] getTxtFilesinCWDir() {
+    //Want to use a map to get the txt file the user chooses: int, String map
+    public static Map<Integer, String> getTxtFilesinCWDir() {
     	File file = new File(".");
     	File[] files = file.listFiles();
     	int i = 0;
-    	//Cleaner-more efficient way definitely possible
-    	for (File eachFile: files) {
-    		if (eachFile.isFile() && eachFile.getName().endsWith("txt")) {
-    			i++;
-    		}
+    	Map<Integer, String> fileNumberNameMap = new HashMap<>();
+    	if (files != null) {
+    		for (File eachFile: files) {
+        		if (eachFile.isFile() && eachFile.getName().endsWith("txt")) {
+        			i++;
+        			fileNumberNameMap.put(i, eachFile.getName());
+        			System.out.println(i + ". " + eachFile.getName());
+        		}
+        	}
+    	} else {
+    		System.out.println("No files found.");
     	}
-    	int txtFileIndices[] = new int[i];
-    	i = 0;
-    	for(File eachFile: files) {
-    		
-    		if (eachFile.isFile() && eachFile.getName().endsWith("txt")) {
-    			i++;
-    			System.out.println(i + ". " + eachFile.getName());
-    		}
-    	}
-    	return txtFileIndices;
+    	return fileNumberNameMap;
     }
     
     public static void main(String[] args) {
         System.out.println("--- GE Data Visualiser ---");
     	// Define your data file path
         Scanner s = new Scanner(System.in);
-    	int[] fileNumber =  getTxtFilesinCWDir();
-        
+    	Map<Integer, String> fileMappings = getTxtFilesinCWDir();
+    	System.out.println("Enter a number to select a file");
+        //At the moment no error handling if user puts in something wrong
+    	int userChoice = s.nextInt();
+        String fileFromChoice = fileMappings.get(userChoice);
+        System.out.printf("\nUser selected file %d. %s", userChoice, fileFromChoice );
+        s.close();
         String cwDir = System.getProperty("user.dir");
-        String dataFileName = "outputAether rune.txt";
+        String dataFileName = fileFromChoice;
         String fullFilePath = cwDir + File.separator + dataFileName;
         
         //GEDataModel.checkCurrentWorkingDirectory(); // Don't really need, very similar method in this class
