@@ -100,7 +100,6 @@ public class GEDataModel {
 	//Used for seeing what files in the current working directory
 	public static void checkCurrentWorkingDirectory() {
 		String cwDir = System.getProperty("user.dir");
-		System.out.println(cwDir);
 		File currentDirectory = new File(cwDir);
 
 		if (currentDirectory.exists() && currentDirectory.isDirectory()) {
@@ -139,7 +138,7 @@ public class GEDataModel {
 		return false;
 	}
 	
-	
+	/*
 	public static void main(String[] args) {
 		String cwDir = System.getProperty("user.dir");
 		System.out.println(cwDir);
@@ -148,5 +147,6 @@ public class GEDataModel {
 		try {geDM.loadData("outputAether rune.txt");} catch (IOException e) {System.err.println(e);}
 
 	}
+	*/
 	
 }

@@ -36,33 +36,39 @@ public class GEDataController {
         }
     }
     
-    public static void getTxtFilesinCWDir() {
+    public static int[] getTxtFilesinCWDir() {
     	File file = new File(".");
     	File[] files = file.listFiles();
     	int i = 0;
+    	//Cleaner-more efficient way definitely possible
+    	for (File eachFile: files) {
+    		if (eachFile.isFile() && eachFile.getName().endsWith("txt")) {
+    			i++;
+    		}
+    	}
+    	int txtFileIndices[] = new int[i];
+    	i = 0;
     	for(File eachFile: files) {
     		
     		if (eachFile.isFile() && eachFile.getName().endsWith("txt")) {
     			i++;
     			System.out.println(i + ". " + eachFile.getName());
-    		} else if (eachFile.isDirectory()) {
-    			System.out.println(eachFile.getName());
     		}
-    		
     	}
+    	return txtFileIndices;
     }
     
     public static void main(String[] args) {
-        // Define your data file path
+        System.out.println("--- GE Data Visualiser ---");
+    	// Define your data file path
         Scanner s = new Scanner(System.in);
-    	getTxtFilesinCWDir();
+    	int[] fileNumber =  getTxtFilesinCWDir();
         
         String cwDir = System.getProperty("user.dir");
         String dataFileName = "outputAether rune.txt";
         String fullFilePath = cwDir + File.separator + dataFileName;
         
-        System.out.println("--- GE Data Visualiser ---");
-        GEDataModel.checkCurrentWorkingDirectory(); // Useful for debugging file paths
+        //GEDataModel.checkCurrentWorkingDirectory(); // Don't really need, very similar method in this class
 
         // 1. Create Model, View, Controller instances:
         GEDataModel model = new GEDataModel();
