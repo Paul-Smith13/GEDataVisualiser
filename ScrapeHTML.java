@@ -255,6 +255,7 @@ public class ScrapeHTML {
 	
 	public static void main(String[] args) {
 		String cwDir = System.getProperty("user.dir");
+		System.out.println(cwDir);
 		Scanner s = new Scanner(System.in);
 		System.out.println("--- GE PRICE, TREND, VOLUME DATA WEBSCRAPER ---");
 		System.out.println("Enter an item's URL from the GE Website to obtain data for:");

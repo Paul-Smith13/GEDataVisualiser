@@ -7,14 +7,28 @@
  * 
  * Input: html from https://oldschool.runescape.wiki/w/Item_IDs
  * Output: txt file containing item names & item ids
+ * 
+ * NOTES:
+ * > Does the job
+ * > Needs refactoring
+ * > Maybe use Singleton Design pattern: all we really need is one instance of the data being passed around (HTML content)
+ * > Including threads is overkill & not clear they actually help
+ * 
  */
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,7 +46,7 @@ public class BigScraper extends ScrapeHTML implements Runnable {
 	private static int rangeOfItems = 14606;
 	private static volatile int itemRangeCounter = 0;
 	private int[] itemRange;
-	
+	private String itemID = "";
 	
 	public BigScraper(String url, String storeToLocation) {
 		super(url, storeToLocation);	
@@ -54,7 +68,7 @@ public class BigScraper extends ScrapeHTML implements Runnable {
 	@Override
 	public String extractItemName(String text) {
 		//Use regex to find the item name
-		Pattern itemNamePattern = Pattern.compile("title=\"(.*?)\">");
+		Pattern itemNamePattern = Pattern.compile("<a[^>]*?>(.*?)</a>");
 		Matcher matcher = itemNamePattern.matcher(text);
 		if (matcher.find()) {
 			return matcher.group(1);
@@ -74,28 +88,80 @@ public class BigScraper extends ScrapeHTML implements Runnable {
 	
 	@Override
 	public void searchWithinText(String text) {
-		//start and end markers are as per structure of the time-series in the htmlContent variable.
-		String startMarker = "var average"; //if structure of html changes, we can simply edit these
-		String endMarker = "</script>";
+		//start and end markers are as per structure of the table in the htmlContent variable.
+		String startMarker = "<tbody>"; //if structure of html changes, we can simply edit these
+		String endMarker = "</tbody></table>";
 		int startingIndex = text.indexOf(startMarker);
 		int endingIndex = text.indexOf(endMarker, startingIndex);
 		
-		//Check if we can find both indices
-		if (startingIndex == -1) {
-			System.out.println("X Starting marker " + startMarker + " not found.");	
-		} 
-		if (endingIndex == -1) {
-			System.out.println("X Ending marker " + endMarker + " not found.");
-		}
-		String operableText = text.substring(startingIndex, endingIndex);
-		//System.out.println("\t\t Extracted the following text: \n" + operableText);				
+		/*//Use for Debugging & checking content of the html text
+		String fileCheckName = "htmlRawScrape.txt";
+		Path filePath = Paths.get(this.storeLocation, fileCheckName);
+		try {
+			BufferedWriter writer = new BufferedWriter(new FileWriter(filePath.toFile()));
+			writer.write(text);	
+			writer.close();
+		} catch (IOException e) {System.err.println(e);}
+		*/
 		
-		//Get item name
-		this.setItemName(extractItemName(text));
-		System.out.println(this.getItemName());
-		 
+		//Check if we can find both indices
+		if (startingIndex == -1) {System.out.println("X Starting marker " + startMarker + " not found.");} 
+		if (endingIndex == -1) {System.out.println("X Ending marker " + endMarker + " not found.");}
+		
+		String tableBodyContent = text.substring(startingIndex + startMarker.length(), endingIndex);
+		//tr = table row, td = table data
+		Pattern rowPattern = Pattern.compile("<tr>(.*?)</tr>", Pattern.DOTALL);
+		Matcher rowMatcher = rowPattern.matcher(tableBodyContent);
+		
+		if (rowMatcher.find()) {
+			//Do nothing & proceed
+		} else {
+			System.err.println("ERROR: no rows found in the table body.");
+		}
+		Map<String, Integer> tableData = new HashMap<>();
+		while (rowMatcher.find()) {
+			String rowHtml = rowMatcher.group(0);
+			//td = Table Data, e.g. tdPattern = table data pattern
+			Pattern tdPattern = Pattern.compile("<td>(.*?)</td>", Pattern.DOTALL);
+			Matcher tdMatcher = tdPattern.matcher(rowHtml);
+			String itemName = "Check - DNF";
+			String itemID = "Check - DNF";
+			if (tdMatcher.find()) {
+				String tdContent = tdMatcher.group(1);
+				itemName = extractItemName(tdContent);
+			}
+			if (tdMatcher.find()) {
+				String tdContent = tdMatcher.group(1);
+				itemID = extractItemID(tdContent);
+			}
+			//Show what is being found:
+			System.out.println("Item name: " + itemName);
+			System.out.println("Item ID: " + itemID);
+			//Store Data in HashMap
+			tableData.put(itemName, Integer.parseInt(itemID));
+			
+		}
+		//Write Data to file:
+		writeToFile(tableData);
+		
 	}
 	
+	public void writeToFile(Map<String, Integer> storeTableData) {
+		try (
+			Writer writeToFile = new BufferedWriter(new FileWriter("ItemNamesIDs.txt"))	
+			){
+			StringBuilder dataForOutput = new StringBuilder();
+			dataForOutput.append("Structure: Item Name, Item ID\n");
+			storeTableData.forEach((itemName, itemID) -> {
+				dataForOutput.append(itemName + ", " + itemID + "\n");
+			}); 
+			writeToFile.write(dataForOutput.toString());
+		} catch (IOException e) {
+			System.err.println("✗ ERROR: wasn't able to write to file" + e.getMessage());
+		}
+		
+		
+	}
 	
 	@Override
 	public void urlCanAccess() {
@@ -132,7 +198,7 @@ public class BigScraper extends ScrapeHTML implements Runnable {
 				}
 				this.setHTMLContent(content.toString());
 				//System.out.println("Actual HTML content: " + this.getHTMLContent()); //Comment back in if we need to look at structure of htmlContent.
-				//this.searchWithinText(this.getHTMLContent());
+				this.searchWithinText(this.getHTMLContent());
 				reader.close();			
 			} else {
 				System.out.println("✗ URL returned error code: " + responseCode);
@@ -146,8 +212,13 @@ public class BigScraper extends ScrapeHTML implements Runnable {
 	@Override
 	public void run() {
 		this.urlCanAccess();
-		System.out.println("Test");
+		System.out.println("Finished.");
+		
 	}
+	
+	//Getters & Setters not inherited
+	public void setItemID(String itemID) {this.itemID = itemID;}
+	public String getItemID() {return this.itemID;}
 
 	public static void main(String[] args) {
 		//Going to create 5 threads to do this
@@ -164,6 +235,8 @@ public class BigScraper extends ScrapeHTML implements Runnable {
 		Thread[] threads = new Thread[5];
 
 		threads[0] = new Thread(bs1, "FirstThread");
+		//threads[0].start(); //For debugging
+		
 		threads[1] = new Thread(bs2, "SecondThread");
 		threads[2] = new Thread(bs3, "ThirdThread");
 		threads[3] = new Thread(bs4, "FourthThread");
@@ -173,6 +246,7 @@ public class BigScraper extends ScrapeHTML implements Runnable {
 		for (Thread thread : threads) {
 			thread.start();
 		}
+		
 		
 	}
 	
