@@ -8,6 +8,8 @@ import java.io.InputStreamReader;
 import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -76,7 +78,8 @@ public class ItemAvailabilityChecker {
 			try {
 				URL checkURL = new URL(item.getURL());
 				HttpURLConnection connection = (HttpURLConnection) checkURL.openConnection();
-				connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\"");
+				//connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\"");
+				connection.setRequestProperty("User-Agent", "GEDataVisualiser (GitHub: https://github.com/Paul-Smith13/GEDataVisualiser)");
 				connection.setRequestMethod("GET");
 				connection.setConnectTimeout(5000);
 				connection.setReadTimeout(10000);
@@ -96,7 +99,7 @@ public class ItemAvailabilityChecker {
 						content.append(line).append("\n");
 					}
 					String allHtmlContent = content.toString();
-					if (allHtmlContent.contains(item.getItemName())) {
+					if (allHtmlContent.contains(item.getItemName()) && allHtmlContent.contains("average30")) {
 						System.out.println(i + " ✓ HTML content contains " + item.getItemName());
 						item.setTradeableGE(true);	
 					} else {
@@ -117,7 +120,7 @@ public class ItemAvailabilityChecker {
 	
 	private static void writeToFile(ItemAvailabilityChecker[] itemsOnGE) {	
 		try (	
-			Writer writeToFile = new BufferedWriter(new FileWriter("ItemsGEAvailability.txt"));	
+			Writer writeToFile = new BufferedWriter(new FileWriter("ItemsGEAvailabilityTest.txt"));	
 			){
 			StringBuilder dataAsString = new StringBuilder();
 			dataAsString.append("Item name, item ID, item URL, item found on GE\n");
@@ -155,6 +158,14 @@ public class ItemAvailabilityChecker {
 			allItemArray[i].setItemID(itemID);
 			//Build the itemURL
 			//Bunch of special characters need to be repalced for URL
+			try {
+				String encodedItemName = URLEncoder.encode(itemName, StandardCharsets.UTF_8.toString());
+				URLBuilder.append(encodedItemName);			
+			} catch (Exception e) {
+				System.err.println(e);
+				URLBuilder.append("error_encoding_name");
+			}
+			/*
 			if (itemName.contains(" ")) { //Spaces to +
 				URLBuilder.append(itemName.replace(" ", "+"));
 			}
@@ -170,6 +181,7 @@ public class ItemAvailabilityChecker {
 			if (itemName.contains("#")) {
 				URLBuilder.append(itemName.replace("#", "%2B"));
 			}
+			*/
 			URLBuilder.append("/viewitem?obj=" + itemID);			
 			allItemArray[i].setURL(URLBuilder.toString());
 			System.out.println(allItemArray[i].getURL());
@@ -177,7 +189,9 @@ public class ItemAvailabilityChecker {
 		});
 		return allItemArray;
 	}
-		
+	
+	
+	
 	//Getters & Setters
 	public String getURL() { return this.url;}
 	public String getStoreLocation() {return this.storeLocation;}
@@ -194,6 +208,7 @@ public class ItemAvailabilityChecker {
 	public void setItemID(int ID) {this.itemID = ID;}
 		
 	public static void main(String[] args) {
+		long startTime = System.currentTimeMillis();
 		//Workflow follows this pattern:
 		//1. Read data from file
 		ItemAvailabilityChecker testCheck = new ItemAvailabilityChecker();
@@ -219,6 +234,9 @@ public class ItemAvailabilityChecker {
 		//5. Write only true results to separate file
 		//5a. Record of what will be later scraped en masse on GE for data
 		
+		long endTime = System.currentTimeMillis();
+		long timeToRun = endTime - startTime;
+		System.out.println("System took " + (timeToRun/1000) + " seconds. In minutes: " + ((timeToRun/1000)/60) );
 		
 	}
 }
