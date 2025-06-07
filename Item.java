@@ -59,31 +59,63 @@ public class Item {
 		}
 		String operableText = text.substring(startingIndex, endingIndex);
 		//System.out.println("\t\t Extracted the following text: \n" + operableText);
-		
-		//Next want to initialise the dates, trendPoints, and dailyAverages variables.
-		//1. Dates
-		this.setDates(extractDates(operableText));
-		// for (String date: this.getDates()) {System.out.println(date);} //Delete comment if want to check what dates we have
-		
-		//Get Data for trendPoints and dailyAverages so we only have to call the method once
-		long[][] dailyAndTrend = extractNumbers(operableText); 
-		this.dailyAverages = new long[dailyAndTrend.length];
-		this.trendPoints = new long[dailyAndTrend.length];
-		
-		//2. & 3. Loop for dailyAverages and trend points
-		for (int i = 0; i < dailyAndTrend.length; i++) {
-			this.trendPoints[i] = dailyAndTrend[i][0];
-			this.dailyAverages[i] = dailyAndTrend[i][1];
+		if (this.dailyData == null) {
+			this.dailyData = new ArrayList<>();
+		} else {
+			this.dailyData.clear();
 		}
-		
-		//4. Get item name
-		this.setItemName(extractItemName(text));
-		System.out.println(this.getItemName());
+				
+		//Next want to initialise the dates, trendPoints, and dailyAverages variables. This will be stored within the Item's dailyData field:
+		//1. Dates
+		String[] dailyDataDates = extractDates(operableText);
+		//2. & 3. Loop for dailyAverages and trend points
+		long[][] dailyAndTrend = extractNumbers(operableText); 
+		long[] dailyAvgPrice = new long[dailyAndTrend.length];
+		long[] dailyTrendPoints = new long[dailyAndTrend.length];
+		for (int i = 0; i < dailyAndTrend.length; i++) {
+			dailyTrendPoints[i] = dailyAndTrend[i][0];
+			dailyAvgPrice[i] = dailyAndTrend[i][1];
+		}		//4. Get item name
+		// for (String date: this.getDates()) {System.out.println(date);} //Delete comment if want to check what dates we have
+		//After we've got this info, we can then initialise GEItemDailyData object with it
 		
 		//5. Get Daily Volumes (if not bond - bond volumes not published)
-		if (!item.getItemName().equals("Old School bond")) {
-			this.setDailyVolumes(extractDailyVolumes(operableText));
-		} 
+		long[] dailyVolumes = null;
+		if (!this.getItemName().equals("Old School bond")) {
+			dailyVolumes = (extractDailyVolumes(operableText));
+		} else {
+			System.out.println("No volume data for OS Bonds on GE.");
+		}
+		int dataPoints = dailyDataDates.length;
+		if (dataPoints != dailyAndTrend.length) {
+			System.err.printf("\nPROBLEM: Daily Date length = %d but Daily Price & Trend length = %d", dataPoints, dailyAndTrend.length);
+			return;
+		}
+		
+		for (int i = 0; i < dataPoints; i++) {
+			String dateString = dailyDataDates[i];
+			LocalDate date = null;
+			try {
+				date = LocalDate.parse(dateString.replace("/", "-"));
+			} catch (java.time.format.DateTimeParseException DTPE) {
+				System.err.println("ERROR: couldn't parse date for "+ this.itemName + " " + DTPE.getMessage());
+				continue;
+			}
+			int dailyAveragePrice = (int) dailyAndTrend[i][1];
+			int trendPoint = (int) dailyAndTrend[i][0];
+			long dailyVol = 0L;
+			if ( (dailyVolumes != null) 
+				&& (i < dailyVolumes.length) ) {
+				dailyVol = dailyVolumes[i];
+			} else if (this.getItemName().equals("OldSchool bond")) {
+				dailyVol = 0L;
+			} else if (dailyVolumes == null) {
+				System.err.println("ERROR: failed to extract any daily volumes for " + this.getItemName());
+			}
+			GEItemDailyData geDD = new GEItemDailyData(date, this.getItemName(), dailyAveragePrice, trendPoint, dailyVol);
+			this.dailyData.add(geDD);
+			
+		}	
 	}
 	
 	public long[] extractDailyVolumes(String text) {
