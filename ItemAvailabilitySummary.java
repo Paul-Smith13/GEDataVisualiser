@@ -36,7 +36,7 @@ public class ItemAvailabilitySummary {
 	
 	public static void main(String[] args) {
 		System.out.println("--- Item Availability Summary ---");
-		String fileName = "ItemsGEAvailability.txt";
+		String fileName = "ItemsGEAvailabilityTest.txt";
 		
 		itemAvailabilitySummary(fileName);
 		
