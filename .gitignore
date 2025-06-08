@@ -1,0 +1,10 @@
+#For compiled class files:
+*.class
+
+#Log Files
+*.log
+logs/
+*.log.*
+
+#For the ItemDataDump directory:
+ItemDataDump/
