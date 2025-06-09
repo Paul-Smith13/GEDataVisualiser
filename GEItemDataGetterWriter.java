@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -154,7 +155,7 @@ public class GEItemDataGetterWriter {
 				} else {
 					System.out.println("✗ URL returned error code: " + responseCode);
 				}
-				connection.disconnect();
+				//connection.disconnect();
 				writeItemDataToFile(item);
 				
 			} catch (IOException ioE) {
@@ -162,7 +163,8 @@ public class GEItemDataGetterWriter {
 			} catch (Exception e) {
 				System.err.println(e.getMessage());
 			}
-			try {Thread.sleep(1000);} catch (InterruptedException ie) {System.err.println(ie);}
+			Random random = new Random();
+			try {Thread.sleep(1000 + random.nextInt(2000));} catch (InterruptedException ie) {System.err.println(ie);}
 		}
 		System.out.println("Finished accessing GE Website for item data.");
 	}
