@@ -31,6 +31,66 @@ class itemCSV:
     def get_Daily_Volume_Series_From_File(self):
         return self.volumes
 
+    def generate_linegraph(self, series_name: str):
+        maximum_length = 0
+        if self.dates:
+            maximum_length = max(maximum_length, len(self.dates))
+        if self.dailyAvgPrices:
+            maximum_length = max(maximum_length, len(self.dailyAvgPrices))
+        if self.trendPrices:
+            maximum_length = max(maximum_length, len(self.trendPrices))
+        if self.volumes:
+            maximum_length = max(maximum_length, len(self.volumes))
+        
+        if maximum_length == 0:
+            print(f"ERROR: no data detected for {self.file_name}")
+            return None
+                        
+        padded_dates = list(self.dates) + [None] * (maximum_length - len(self.dates)) if self.dates is not None else [None] * maximum_length     
+        padded_dailyAvgPrices = list(self.dailyAvgPrices) + [None] * (maximum_length - len(self.dailyAvgPrices)) if self.dailyAvgPrices is not None else [None] * maximum_length     
+        padded_trendPrices = list(self.trendPrices) + [None] * (maximum_length - len(self.trendPrices)) if self.trendPrices is not None else [None] * maximum_length     
+        padded_volumes = list(self.volumes) + [None] * (maximum_length - len(self.volumes)) if self.volumes is not None else [None] * maximum_length     
+
+
+        data = {
+            'Date': padded_dates,
+            'Daily Average Price': padded_dailyAvgPrices,
+            'Trend Points': padded_trendPrices,
+            'Daily Volume': padded_volumes
+        }
+        df = pd.DataFrame(data)
+        df.info()
+        df.head()
+        try:
+            df['Date'] = pd.to_datetime(df['Date'])
+        except Exception as e:
+            print(f"ERROR: {e}")
+            return None
+        if series_name not in df.columns:
+            print(f"ERROR: in {self.file_name} couldn't find {series_name}")
+            return None
+        
+        df[series_name] = pd.to_numeric(df[series_name], errors='coerce')
+        print(f"\n--- DEBUG for '{self.file_name}' and series '{series_name}' ---")
+        print(f"  Data type of 'Date' column: {df['Date'].dtype}")
+        print(f"  Count of NaT values in 'Date': {df['Date'].isna().sum()}")
+        print(f"  Data type of '{series_name}' column after pd.to_numeric: {df[series_name].dtype}")
+        print(f"  Count of NaN values in '{series_name}': {df[series_name].isna().sum()}")
+        print(f"  First 5 values of '{series_name}' column: {df[series_name].head(5).tolist()}")
+        print(f"  Total rows in DataFrame (before dropping NaNs): {len(df)}")
+        line_chart = alt.Chart(df).mark_line().encode(
+            x = alt.X('Date:T', title = 'Date'),
+            y = alt.Y(series_name + ':Q', title=series_name),
+            tooltip = [
+                alt.Tooltip('Date:T', format='%Y-%m-%d'),
+                alt.Tooltip(series_name + ':Q', format = '.2f')
+            ]
+        ).properties(
+            title=f"{series_name} for {self.file_name.replace('.csv', '')}"
+        ).interactive()
+
+        return line_chart
+
 #Loop in current directory to check if we have ItemDataDump created from earlier process
 def all_Dirs_in_ItemDataDump():
     cwd = os.getcwd()
@@ -134,15 +194,13 @@ def data_CSVs_Found(CSVs_Found):
 
 def visualise_CSV_data_scope(allCSVs):
     cwd = Path.cwd()
-    print("testing")
-
     path_ItemDataDump = cwd / "ItemDataDump"
     CSVs_processed = 0
     empty_CSVs = 0
     if not isinstance(path_ItemDataDump, Path):
         path_ItemDataDump = Path(path_ItemDataDump)
-    print("testing")
-   
+    processed_CSVs = []
+
     for CSV in allCSVs:
         csv_file_path = path_ItemDataDump / CSV
         if csv_file_path.is_file():
@@ -154,6 +212,14 @@ def visualise_CSV_data_scope(allCSVs):
                     continue
 
                 df = pd.read_csv(csv_file_path, encoding = 'utf-8')
+                df.columns = df.columns.str.strip()
+                print(f"\n--- DEBUG (FROM visualise_CSV_data_scope) for '{CSV}' ---")
+                print("  DataFrame info *immediately after reading CSV*:")
+                df.info(verbose=True, show_counts=True)
+                print("  First 5 rows of DataFrame *immediately after reading CSV*:")
+                print(df.head().to_string())
+                print("--- END DEBUG PRINTS ---")
+
                 #Data from file
                 dates = df['Date'].tolist() if 'Date' in df.columns else []
                 prices = df['Daily Average Price'].tolist() if 'Daily Average Price' in df.columns else []
@@ -173,7 +239,7 @@ def visualise_CSV_data_scope(allCSVs):
                     trendSeries=trends,
                     volumeSeries=volumes
                 )
-    
+                processed_CSVs.append(item_object)
                 CSVs_processed += 1
             except pd.errors.EmptyDataError:
                 print(f"ERROR: empty data error for {allCSVs}")
@@ -216,7 +282,7 @@ def visualise_CSV_data_scope(allCSVs):
     pie_chart = alt.Chart(visualised_data).mark_arc(outerRadius=120).encode(
         theta = alt.Theta(field = "Count", type = "quantitative"),
         color = alt.Color("Category:N", legend = alt.Legend(title = "CSV Status", orient= "bottom")),
-        order = alt.Order("Percentage", sort="descending"),
+        order = alt.Order("Percentage", sort="ascending"),
         tooltip= ["Category", "Count", alt.Tooltip("Percentage", format = ".1f", title = "Percentage")]
     )
     text_pie = pie_chart.mark_text(radius=140).encode(
@@ -238,8 +304,7 @@ def visualise_CSV_data_scope(allCSVs):
     except Exception as e:
         print(f"ERROR: {e}") 
 
-    return 
-
+    return processed_CSVs
 
 # Equivalent of main
 # Want to check if we need to run earlier stage
@@ -257,3 +322,16 @@ print(f"Found CSVs: {get_all_ItemDataDumpCSVs()}")
 #dataCSVs = {data_CSVs_Found(get_all_ItemDataDumpCSVs())}
 #Next want visualise scope of data coverage
 visualise_CSV_data_scope(allCSVs)
+
+dataCSVs = visualise_CSV_data_scope(allCSVs)
+if dataCSVs:
+    test_CSV = dataCSVs[650]
+    line_chart_for_CSV = test_CSV.generate_linegraph('Daily Average Price')
+    if line_chart_for_CSV:
+        test_output_filename = f"{test_CSV.file_name.replace('.csv', '')}_Price_LineGraph.html"
+        line_chart_for_CSV.save(test_output_filename)
+        print("Saved line graph for test as html file")
+    else:
+        print(f"ERROR: failed to generate linegraph")
+else:
+    print("No Data CSVs were successfully processed.")

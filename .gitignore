@@ -8,3 +8,6 @@ logs/
 
 #For the ItemDataDump directory:
 ItemDataDump/
+
+#For debug outputs:
+*.txt
