@@ -11,3 +11,6 @@ ItemDataDump/
 
 #For debug outputs:
 *.txt
+
+#For graphs I've generated locally:
+*.html
