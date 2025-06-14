@@ -15,10 +15,12 @@ class itemCSV:
 
     # Thinking about a function to return largest changes over period
     def get_series_highest(self, data_series):
-        return max(data_series)
+        numbers = [x for x in data_series if isinstance(x, (int, float))]
+        return max(data_series) if numbers else None
 
     def get_series_lowest(self, data_series):
-        return min(data_series)
+        numbers = [x for x in data_series if isinstance(x, (int, float))]
+        return min(data_series) if numbers else None
 
     def get_Daily_Price_Series_From_File(self):
         return self.dailyAvgPrices

@@ -4,6 +4,7 @@ import altair as alt
 from pathlib import Path
 import re
 import datetime
+from GE_Item_Data import itemCSV
 
 #File purpose: produce & communicate scope of data covered
 
@@ -87,18 +88,131 @@ def summarise_CSV_data_scope():
     """
     return summary_message
 
-#Equivalent of main method
-#Test has_ItemDataDump()
-#print(has_ItemDataDump())
+def visualise_CSV_data_scope(CSVs: list[str]):
 
-#Test get_all_ItemDataDump_CSVs()
-#print(get_ItemDataDump_dataCSVs())
+    path_ItemDataDump = Path.cwd() / "ItemDataDump"
+    count_CSVs_processed = 0
+    count_empty_CSVs = 0
+    if not isinstance(path_ItemDataDump, Path):
+        path_ItemDataDump = Path(path_ItemDataDump)
+    processed_CSVs = []
 
-#Test get_ItemDataDump_dataCSVs()
-#print(how_many_ItemDataDump_CSVs())
+    for CSV in CSVs:
+        csv_file_path = path_ItemDataDump / CSV
+        if csv_file_path.is_file():
+            try:
+                file_size = csv_file_path.stat().st_size
+                if file_size <= 63:
+                    #print(f"{CSV} was empty. Skipping")
+                    count_empty_CSVs +=1
+                    continue
 
-#Test how_many_dataCSVs_ItemDataDump()
-#print(how_many_dataCSVs_ItemDataDump())
+                df = pd.read_csv(csv_file_path, encoding = 'utf-8')
+                df.columns = df.columns.str.strip()
 
-#Test summarise_CSV_data_scope()
-print(summarise_CSV_data_scope())
+                #Data from file
+                dates = df['Date'].tolist() if 'Date' in df.columns else []
+                prices = df['Daily Average Price'].tolist() if 'Daily Average Price' in df.columns else []
+                trends = df['Trend Points'].tolist() if 'Trend Points' in df.columns else []
+                volumes = df['Daily Volume'].tolist() if 'Daily Volume' in df.columns else []
+                #Get file data
+                file_name = CSV
+                last_modified = csv_file_path.stat().st_mtime
+                last_updated_date = datetime.datetime.fromtimestamp(last_modified).strftime('%Y-%m-%d %H:%M:%S')
+                #Instantiate CSV object
+                item_object = itemCSV(
+                    name=file_name,
+                    size=file_size,
+                    updated=last_updated_date,
+                    dateSeries=dates,
+                    priceSeries=prices,
+                    trendSeries=trends,
+                    volumeSeries=volumes
+                )
+                processed_CSVs.append(item_object)
+                count_CSVs_processed += 1
+            except pd.errors.EmptyDataError:
+                print(f"ERROR: empty data error for {CSVs}")
+            except FileNotFoundError:
+                #Unlikely to happen, given file already found
+                print(f"ERROR: file note found for {CSVs}")
+            except Exception as e:
+                print(f"Unexpected error: {e}")
+                import traceback
+                traceback.print_exc()
+    all_CSVs_Count = count_CSVs_processed + count_empty_CSVs
+    print(f"Was able to process {count_CSVs_processed}, missing {count_empty_CSVs}.")
+    visualised_data = pd.DataFrame({
+        'Category': ['CSVs with Data', 'Empty/Skipped CSVs'],
+        'Count': [count_CSVs_processed, count_empty_CSVs]
+    })
+    # % for pie-chart
+    visualised_data['Percentage'] = (visualised_data['Count'] / all_CSVs_Count * 100).round(2)
+    visualised_data['Percentage Label'] = visualised_data['Percentage'].astype(str) + '%'
+    bar_chart = alt.Chart(visualised_data).mark_bar().encode(
+        x = alt.X('Category:N', axis = alt.Axis(title = None)),
+        y = 'Count:Q',
+        color = alt.Color('Category:N', legend=alt.Legend(title="CSV Data Scope", orient="bottom")),
+        tooltip = ['Category', 'Count']
+    ).properties(
+        title = 'Total CSVs: Data vs. Empty'
+    )
+
+    text_bar = bar_chart.mark_text(
+        align = 'center',
+        baseline = 'bottom',
+        dy =-5
+    ).encode(
+        text = 'Count:Q',
+        color = alt.value('black')
+    )
+    combined_bar_chart = (bar_chart + text_bar).properties(
+        width = 100
+    )
+
+    #PieChart
+    pie_chart = alt.Chart(visualised_data).mark_arc(outerRadius=120).encode(
+        theta = alt.Theta(field = "Count", type = "quantitative"),
+        color = alt.Color("Category:N", legend = alt.Legend(title = "CSV Status", orient= "bottom")),
+        order = alt.Order("Percentage", sort="ascending"),
+        tooltip= ["Category", "Count", alt.Tooltip("Percentage", format = ".1f", title = "Percentage")]
+    )
+    text_pie = pie_chart.mark_text(radius=140).encode(
+        text='Percentage Label',
+        order = alt.Order("Percentage", sort = "descending"),
+        color = alt.value('black')
+    )
+
+    combined_pie_chart = (pie_chart + text_pie)
+    final_chart = alt.hconcat(combined_bar_chart, combined_pie_chart).resolve_legend(
+        color = "independent"
+    ).properties(
+        title = f"CSV Data Summary for ItemDataDump (Total Files: {all_CSVs_Count})"
+    )
+    try:
+        output_name = "CSV_Data_Scope.html"
+        final_chart.save(output_name)
+        print(f"Saved output to {output_name}")
+    except Exception as e:
+        print(f"ERROR: {e}") 
+
+    return processed_CSVs
+
+    #Equivalent of main method
+if __name__ == "__main__":
+    #Test has_ItemDataDump()
+    #print(has_ItemDataDump())
+
+    #Test get_all_ItemDataDump_CSVs()
+    #print(get_ItemDataDump_dataCSVs())
+
+    #Test get_ItemDataDump_dataCSVs()
+    #print(how_many_ItemDataDump_CSVs())
+
+    #Test how_many_dataCSVs_ItemDataDump()
+    #print(how_many_dataCSVs_ItemDataDump())
+
+    #Test summarise_CSV_data_scope()
+    print(summarise_CSV_data_scope())
+
+    visualise_CSV_data_scope(get_all_ItemDataDump_CSVs())
